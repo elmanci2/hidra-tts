@@ -39,7 +39,7 @@ dependencies = [
 qwen-tts-demo = "qwen_tts.cli.demo:main"
 
 [tool.setuptools]
-packages = { find = { where = ["."] , include = ["qwen_tts*"] } }
+packages = { find = { where = ["."] , include = ["qwen_tts*", "src*"] } }
 include-package-data = true
 
 [tool.setuptools.package-data]

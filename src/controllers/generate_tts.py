@@ -13,15 +13,16 @@ class Generate:
         )
 
     def generate(self, text, audio_ref_path, output_path, **kwargs):
-        # Default parameters
+
         params = {
             "language": "Spanish",
-            "x_vector_only_mode": True,
+            "x_vector_only_mode": True ,
             "max_new_tokens": 2048,
             "repetition_penalty": 1.1,
-            "temperature": 0.5,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "ref_text": "",
         }
-        # Update with provided kwargs
         params.update(kwargs)
 
         wavs, sr = self.model.generate_voice_clone(

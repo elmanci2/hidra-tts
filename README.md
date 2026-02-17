@@ -1,76 +1,123 @@
-# Hidra TTS API (Qwen3-TTS)
+# Hidra TTS API
 
-API simple para clonación de voz y texto a voz (TTS) utilizando el modelo **Qwen3-TTS**.
+API de clonación de voz y texto a voz (TTS) construida con **FastAPI** y el modelo **Qwen3-TTS**.
 
-## Instalación
+## Arquitectura
 
-1.  Asegúrate de tener Python 3.9+ instalado.
-2.  Instala las dependencias:
+```
+main.py                          → Punto de entrada
+├── src/
+│   ├── server.py                → FastAPI app, rutas y modelos Pydantic
+│   ├── config/conf.py           → HOST / PORT
+│   └── controllers/
+│       └── generate_tts.py      → Lógica de generación (clase Generate)
+└── qwen_tts/                    → Módulo Qwen3-TTS (modelo + tokenizer)
+    └── inference/
+        ├── qwen3_tts_model.py   → Qwen3TTSModel wrapper
+        └── qwen3_tts_tokenizer.py
+```
 
-    ```bash
-    pip install -r requirements.txt
-    ```
+## Requisitos
 
-    **Nota:** Es posible que necesites instalar `torch` con soporte CUDA si tienes una GPU NVIDIA.
+- Python 3.11+
+- GPU NVIDIA con CUDA 12.x (recomendado)
 
-## Docker (con soporte GPU)
+## Instalación Local
 
-Para ejecutar el contenedor con acceso a la GPU, asegúrate de tener instalado el [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
+```bash
+# Crear entorno virtual
+python -m venv venv
+source venv/bin/activate
 
-1.  Construir y levantar el servicio:
+# Instalar proyecto y dependencias
+pip install .
+```
 
-    ```bash
-    docker compose up --build
-    ```
+## Docker (GPU)
 
-    El servicio estará disponible en `http://localhost:8000`.
+Requiere [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/install-guide.html).
 
-## Uso tradicional
-1.  Inicia el servidor:
+```bash
+# Construir y arrancar
+docker compose up --build
 
-    ```bash
-    python main.py
-    ```
+# Solo construir
+docker compose build
+```
 
-    El servidor se iniciará en `http://0.0.0.0:8000`.
+El servicio estará en `http://localhost:8000`.
+
+> **Nota:** La primera ejecución descargará el modelo (~3.4 GB). El cache se persiste en un volumen Docker (`hf_cache`) para evitar re-descargas.
+
+## Uso
+
+```bash
+python main.py
+```
+
+Servidor en `http://0.0.0.0:8000`.
 
 ## Endpoints
 
+### `GET /`
+
+Health check. Retorna info del servicio.
+
 ### `POST /tts/generate`
 
-Genera un archivo de audio clonando la voz de un archivo de referencia.
+Genera audio clonando la voz de una referencia.
 
-**Cuerpo de la Petición (JSON):**
+**Request Body (JSON):**
 
-| Campo | Tipo | Descripción | Opcional | Default |
+| Campo | Tipo | Requerido | Default | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
-| `text` | string | El texto que quieres que diga. | No | - |
-| `audio_ref_path` | string | Ruta absoluta al archivo de audio de referencia. | No | - |
-| `output_path` | string | Ruta absoluta donde se guardará el audio generado. | No | - |
-| `max_new_tokens` | int | Máximo de tokens nuevos a generar. | Sí | 2048 |
-| `repetition_penalty` | float | Penalización de repetición. | Sí | 1.1 |
-| `temperature` | float | Temperatura de muestreo (creatividad). | Sí | 0.5 |
-| `x_vector_only_mode` | bool | Modo solo vector X. | Sí | true |
+| `text` | string | ✅ | — | Texto a sintetizar |
+| `audio_ref_path` | string | ✅ | — | Ruta al audio de referencia |
+| `output_path` | string | ✅ | — | Ruta del archivo de salida (.wav) |
+| `ref_text` | string | — | `""` | Transcripción del audio de referencia (mejora la calidad en modo ICL) |
+| `language` | string | — | `"Spanish"` | Idioma: `"Spanish"`, `"English"`, `"Auto"`, etc. |
+| `max_new_tokens` | int | — | `2048` | Máximo de tokens a generar |
+| `repetition_penalty` | float | — | `1.1` | Penalización por repetición |
+| `temperature` | float | — | `0.5` | Temperatura de muestreo |
+| `x_vector_only_mode` | bool | — | `true` | `true`: solo usa embedding del hablante. `false`: modo ICL (usa `ref_text`) |
 
-
-**Ejemplo con cURL:**
+**Ejemplo:**
 
 ```bash
 curl -X POST "http://localhost:8000/tts/generate" \
      -H "Content-Type: application/json" \
      -d '{
            "text": "Hola, esto es una prueba de clonación de voz.",
-           "audio_ref_path": "/ruta/a/tu/referencia.mp3",
-           "output_path": "/ruta/donde/guardar/resultado.wav"
+           "audio_ref_path": "/ruta/a/referencia.mp3",
+           "output_path": "/ruta/a/resultado.wav"
          }'
 ```
 
-**Respuesta Exitosa:**
+**Respuesta exitosa:**
 
 ```json
 {
   "status": "success",
-  "output_path": "/ruta/donde/guardar/resultado.wav",
+  "output_path": "/ruta/a/resultado.wav",
   "message": "Audio generated successfully"
 }
 ```
+
+**Respuesta de error:**
+
+```json
+{
+  "detail": "descripción del error"
+}
+```
+
+## Variables de Entorno
+
+| Variable | Default | Descripción |
+| :--- | :--- | :--- |
+| `HF_HOME` | `~/.cache/huggingface` | Directorio de cache de modelos HuggingFace |
+| `NVIDIA_VISIBLE_DEVICES` | — | GPUs visibles para el contenedor |
+
+## Licencia
+
+Apache-2.0

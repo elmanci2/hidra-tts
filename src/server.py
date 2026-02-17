@@ -24,6 +24,8 @@ class TTSRequest(BaseModel):
     text: str
     audio_ref_path: str
     output_path: str
+    ref_text: str = ""
+    language: str = "Spanish"
     max_new_tokens: int = 2048
     repetition_penalty: float = 1.1
     temperature: float = 0.5
@@ -45,10 +47,12 @@ def generate_audio(request: TTSRequest):
         
         # Prepare kwargs from request, filtering out non-gen args
         gen_kwargs = {
+            "language": request.language,
             "max_new_tokens": request.max_new_tokens,
             "repetition_penalty": request.repetition_penalty,
             "temperature": request.temperature,
-            "x_vector_only_mode": request.x_vector_only_mode
+            "x_vector_only_mode": request.x_vector_only_mode,
+            "ref_text": request.ref_text,
         }
 
         output_file = tts_module.generate(

@@ -6,6 +6,9 @@ ENV DEBIAN_FRONTEND=noninteractive
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
+# HuggingFace cache directory (mount as volume for persistence)
+ENV HF_HOME=/app/.cache/huggingface
+
 WORKDIR /app
 
 # Install system dependencies and Python 3.11 via deadsnakes PPA
@@ -13,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     software-properties-common \
     curl \
     git \
+    ffmpeg \
     libsndfile1 \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y \
@@ -32,10 +36,12 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
 # Copy project files
 COPY . .
 
-# Install dependencies
-# We use requirements.txt if available, or install from current dir
+# Install the project and all dependencies
 RUN pip install --no-cache-dir .
 
 EXPOSE 8000
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
+    CMD curl -f http://localhost:8000/ || exit 1
 
 CMD ["python", "main.py"]
