@@ -6,6 +6,8 @@ services:
     volumes:
       # Persist HuggingFace model cache between rebuilds
       - hf_cache:/app/.cache/huggingface
+      # Mount Hidra config directory so container can access cloud models and write TTS output
+      - ${HOME}/.config/Hidra:${HOME}/.config/Hidra
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     deploy:
