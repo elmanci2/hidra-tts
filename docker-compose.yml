@@ -8,6 +8,8 @@ services:
       - hf_cache:/app/.cache/huggingface
       # Mount Hidra config directory so container can access cloud models and write TTS output
       - ${HOME}/.config/Hidra:${HOME}/.config/Hidra
+      # Mount home directory to allow access to user files (e.g. Desktop, Documents)
+      - ${HOME}:${HOME}
     environment:
       - NVIDIA_VISIBLE_DEVICES=all
     deploy:
