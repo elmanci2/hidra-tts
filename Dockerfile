@@ -1,5 +1,5 @@
-# Base image with CUDA 12.1 and Ubuntu 22.04
-FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+# Base image with CUDA 12.8 devel (includes nvcc for compiling flash-attn)
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,6 +8,9 @@ ENV PYTHONUNBUFFERED=1
 
 # HuggingFace cache directory (mount as volume for persistence)
 ENV HF_HOME=/app/.cache/huggingface
+
+# CUDA paths for flash-attn compilation
+ENV CUDA_HOME=/usr/local/cuda
 
 WORKDIR /app
 
@@ -19,6 +22,7 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
     sox \
+    ninja-build \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y \
     python3.11 \
@@ -37,8 +41,11 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
 # Copy project files
 COPY . .
 
-# Install the project and all dependencies
+# Install the project dependencies (without flash-attn, se instala aparte)
 RUN pip install --no-cache-dir .
+
+# Install flash-attn separately (requires nvcc from devel image)
+RUN pip install --no-cache-dir flash-attn --no-build-isolation
 
 EXPOSE 8000
 

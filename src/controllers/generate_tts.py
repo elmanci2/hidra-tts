@@ -3,14 +3,19 @@ from qwen_tts import Qwen3TTSModel
 import torch
 import soundfile as sf
 
+try:
+    import flash_attn  # noqa: F401
+    ATTN_IMPL = "flash_attention_2"
+except ImportError:
+    ATTN_IMPL = "sdpa"
+
 class Generate:
     def __init__(self):
         self.model = Qwen3TTSModel.from_pretrained(
-            # "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
-            "Qwen/Qwen3-TTS-12Hz-0.6B-Base",
+            "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
             device_map="cuda",
             dtype=torch.bfloat16,
-            attn_implementation="flash_attention_2",
+            attn_implementation=ATTN_IMPL,
         )
 
     def generate(self, text, audio_ref_path, output_path, **kwargs):
