@@ -2,3 +2,5 @@ venv/
 __pycache__/
 .env
 .venv
+hidra_tts.egg-info
+build
