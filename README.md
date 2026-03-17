@@ -63,6 +63,30 @@ Servidor en `http://0.0.0.0:8000`.
 
 Health check. Retorna info del servicio.
 
+### `POST /tts/extract_voice`
+
+Extrae un perfil de voz (vector de voz/prompt comprimido) de un audio de referencia. Este perfil se puede guardar como un archivo `.pt` y usarse posteriormente en el endpoint de generación para acelerar el proceso y asegurar consistencia.
+
+**Request Body (JSON):**
+
+| Campo | Tipo | Requerido | Default | Descripción |
+| :--- | :--- | :--- | :--- | :--- |
+| `audio_ref_path` | string | ✅ | — | Ruta al audio de referencia (.mp3, .wav, etc.) |
+| `output_path` | string | ✅ | — | Ruta donde se guardará el perfil de voz (.pt) |
+| `ref_text` | string | — | `""` | Transcripción del audio de referencia (mejora la calidad) |
+
+**Ejemplo:**
+
+```bash
+curl -X POST "http://localhost:8000/tts/extract_voice" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "audio_ref_path": "/ruta/a/referencia.mp3",
+           "output_path": "/ruta/a/voz_perfil.pt",
+           "ref_text": "Texto que se dice en el audio de referencia."
+         }'
+```
+
 ### `POST /tts/generate`
 
 Genera audio clonando la voz de una referencia.
@@ -72,7 +96,7 @@ Genera audio clonando la voz de una referencia.
 | Campo | Tipo | Requerido | Default | Descripción |
 | :--- | :--- | :--- | :--- | :--- |
 | `text` | string | ✅ | — | Texto a sintetizar |
-| `audio_ref_path` | string | ✅ | — | Ruta al audio de referencia |
+| `audio_ref_path` | string | ✅ | — | Ruta al audio de referencia (.mp3, .wav, etc.) **O** ruta a un perfil de voz (.pt) extraído previamente. |
 | `output_path` | string | ✅ | — | Ruta del archivo de salida (.wav) |
 | `ref_text` | string | — | `""` | Transcripción del audio de referencia (mejora la calidad en modo ICL) |
 | `language` | string | — | `"Spanish"` | Idioma: `"Spanish"`, `"English"`, `"Auto"`, etc. |

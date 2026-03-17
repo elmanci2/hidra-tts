@@ -38,14 +38,27 @@ RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
 RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
     && update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
 
-# Copy project files
-COPY . .
+# ============================================================
+# PASO 1: Copiar SOLO archivos de dependencias (cambian poco)
+# Docker cachea esta capa. Si no tocas pyproject.toml,
+# no reinstala nada — rebuild instantáneo.
+# ============================================================
+COPY pyproject.toml setup.cfg* setup.py* README.md ./
+COPY qwen_tts/ ./qwen_tts/
 
-# Install the project dependencies (without flash-attn, se instala aparte)
+# Install project dependencies
 RUN pip install --no-cache-dir .
 
-# Install flash-attn separately (requires nvcc from devel image)
+# Install flash-attn separately (requires nvcc, tarda ~15 min)
+# Esta capa se cachea y NO se repite si solo cambias código
 RUN pip install --no-cache-dir flash-attn --no-build-isolation
+
+# ============================================================
+# PASO 2: Copiar el código de la app (cambia frecuentemente)
+# Solo esta capa se rehace cuando modificas tu código.
+# ============================================================
+COPY src/ ./src/
+COPY main.py ./
 
 EXPOSE 8000
 
