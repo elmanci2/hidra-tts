@@ -24,7 +24,7 @@ class Generate:
             "language": "Spanish",
             "x_vector_only_mode": False,  
             "max_new_tokens": 512,
-            "repetition_penalty": 1.05,   # Closer to Qwen3 default
+            "repetition_penalty": 1.07,   # Closer to Qwen3 default
             "temperature": 0.9,           # Default for maximizing expression/rhythm
             "top_p": 1.0,
         }
