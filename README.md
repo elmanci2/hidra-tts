@@ -98,14 +98,14 @@ Genera audio clonando la voz de una referencia.
 | `text` | string | ✅ | — | Texto a sintetizar |
 | `audio_ref_path` | string | ✅ | — | Ruta al audio de referencia (.mp3, .wav, etc.) **O** ruta a un perfil de voz (.pt) extraído previamente. |
 | `output_path` | string | ✅ | — | Ruta del archivo de salida (.wav) |
-| `ref_text` | string | — | `""` | Transcripción del audio de referencia (mejora la calidad en modo ICL) |
+| `ref_text` | string | — | `""` | Transcripción del audio de referencia (mejora la calidad en modo ICL). **Nota:** Si usas un `.pt`, no necesitas enviar esto. |
 | `language` | string | — | `"Spanish"` | Idioma: `"Spanish"`, `"English"`, `"Auto"`, etc. |
 | `max_new_tokens` | int | — | `2048` | Máximo de tokens a generar |
 | `repetition_penalty` | float | — | `1.1` | Penalización por repetición |
 | `temperature` | float | — | `0.5` | Temperatura de muestreo |
 | `x_vector_only_mode` | bool | — | `true` | `true`: solo usa embedding del hablante. `false`: modo ICL (usa `ref_text`) |
 
-**Ejemplo:**
+**Ejemplo con archivo de audio:**
 
 ```bash
 curl -X POST "http://localhost:8000/tts/generate" \
@@ -114,6 +114,18 @@ curl -X POST "http://localhost:8000/tts/generate" \
            "text": "Hola, esto es una prueba de clonación de voz.",
            "audio_ref_path": "/ruta/a/referencia.mp3",
            "output_path": "/ruta/a/resultado.wav"
+         }'
+```
+
+**Ejemplo usando un perfil de voz (.pt) pre-extraído:**
+
+```bash
+curl -X POST "http://localhost:8000/tts/generate" \
+     -H "Content-Type: application/json" \
+     -d '{
+           "text": "Este audio se genera más rápido usando el vector de voz pre-calculado.",
+           "audio_ref_path": "/ruta/a/voz_perfil.pt",
+           "output_path": "/ruta/a/resultado2.wav"
          }'
 ```
 

@@ -6,8 +6,10 @@ import soundfile as sf
 try:
     import flash_attn  # noqa: F401
     ATTN_IMPL = "flash_attention_2"
+    print("usando flash_attention_2")
 except ImportError:
     ATTN_IMPL = "sdpa"
+    print("usando sdpa")
 
 class Generate:
     def __init__(self):
