@@ -1,5 +1,5 @@
-# Base image with CUDA 12.8 devel (includes nvcc for compiling flash-attn)
-FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu22.04
+# Base image with CUDA 12.1 and Ubuntu 22.04 runtime (lightweight and safe)
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
 
 # Prevent interactive prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
@@ -8,9 +8,6 @@ ENV PYTHONUNBUFFERED=1
 
 # HuggingFace cache directory (mount as volume for persistence)
 ENV HF_HOME=/app/.cache/huggingface
-
-# CUDA paths for flash-attn compilation
-ENV CUDA_HOME=/usr/local/cuda
 
 WORKDIR /app
 
@@ -22,7 +19,6 @@ RUN apt-get update && apt-get install -y \
     ffmpeg \
     libsndfile1 \
     sox \
-    ninja-build \
     && add-apt-repository ppa:deadsnakes/ppa \
     && apt-get update && apt-get install -y \
     python3.11 \
@@ -30,6 +26,7 @@ RUN apt-get update && apt-get install -y \
     python3.11-dev \
     python3.11-distutils \
     && rm -rf /var/lib/apt/lists/*
+
 
 # Install pip for Python 3.11
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.11
@@ -46,12 +43,16 @@ RUN update-alternatives --install /usr/bin/python python /usr/bin/python3.11 1 \
 COPY pyproject.toml setup.cfg* setup.py* README.md ./
 COPY qwen_tts/ ./qwen_tts/
 
-# Install project dependencies
+# Para garantizar la compatibilidad exacta con la rueda (.whl) de flash-attn,
+# fijamos la versión de PyTorch ANTES de instalar el resto de la app
+RUN pip install torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 --index-url https://download.pytorch.org/whl/cu124
+
+# Instalamos la rueda PRE-COMPILADA exacta (v2.7.4.post1) para PyTorch 2.6 y CUDA 12 + Python 3.11
+RUN pip install https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.6cxx11abiFALSE-cp311-cp311-linux_x86_64.whl
+
+# Install the project and all remaining dependencies
 RUN pip install --no-cache-dir .
 
-# Install flash-attn separately (requires nvcc, tarda ~15 min)
-# Esta capa se cachea y NO se repite si solo cambias código
-RUN pip install --no-cache-dir flash-attn --no-build-isolation
 
 # ============================================================
 # PASO 2: Copiar el código de la app (cambia frecuentemente)
