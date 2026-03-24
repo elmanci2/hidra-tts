@@ -1,111 +1,195 @@
 import uvicorn
 import time
 import torch
-from pydantic import BaseModel
-from typing import Optional, Dict, Any
-from fastapi import FastAPI, HTTPException
+import io
+import os
+import tempfile
+from typing import Optional
+import asyncio
+from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response, JSONResponse
 
 # Config & Logic
 from src.config.conf import SERVER_HOST, SERVER_PORT
-from src.controllers.generate_tts import Generate
+from src.controllers.generate_tts import Generate, model_manager
+from src.controllers.batch_engine import BatchEngine
 
-app = FastAPI()
+app = FastAPI(
+    title="Hidra-TTS API",
+    description="Production-grade TTS API with Dynamic Batching",
+    version="2.0.0",
+)
 
-# --- Initialize TTS Module ---
-# Loading model globally to avoid reloading on every request
+# --- Initialize TTS Controller ---
 try:
-    print("🚀 Cargando modelo TTS...")
-    tts_module = Generate()
-    print("✅ Modelo cargado correctamente.")
+    print("🚀 Inicializando controlador TTS...")
+    tts_controller = Generate()
+    print("✅ Controlador TTS listo.")
 except Exception as e:
-    print(f"❌ Error loading TTS module: {e}")
-    tts_module = None
+    print(f"❌ Error loading TTS controller: {e}")
+    tts_controller = None
 
-# --- Pydantic Models ---
-class ExtractRequest(BaseModel):
-    audio_ref_path: str
-    output_path: str
-    ref_text: str = ""
+# --- VRAM Calibration ---
+MAX_VRAM_GB = 12.0
+try:
+    if torch.cuda.is_available():
+        free_vram, total_vram = torch.cuda.mem_get_info()
+        MAX_VRAM_GB = free_vram / (1024**3)
+except Exception:
+    pass
 
-class TTSRequest(BaseModel):
-    text: str
-    audio_ref_path: str
-    output_path: str
-    ref_text: str = ""
-    language: str = "Spanish"
-    max_new_tokens: int = 2048
-    repetition_penalty: float = 1.1
+# El modelo base toma ~3.8 GB en bf16.
+AVAILABLE_FOR_TASKS = MAX_VRAM_GB - 3.8
+VRAM_PER_ITEM_GB = 0.5  # Cada item en un batch usa ~0.5GB (mucho menos que procesos separados)
+MAX_BATCH_SIZE = max(1, min(16, int(AVAILABLE_FOR_TASKS / VRAM_PER_ITEM_GB))) if AVAILABLE_FOR_TASKS > 0 else 1
+
+vram_info = f"{round(MAX_VRAM_GB, 2)}GB"
+print(f"⚙️ VRAM detectada: {vram_info} -> Max Batch Size dinámico: {MAX_BATCH_SIZE}")
+
+# --- Batch Engine ---
+batch_engine: Optional[BatchEngine] = None
+
+@app.on_event("startup")
+async def startup_event():
+    global batch_engine
+    if tts_controller is not None:
+        batch_engine = BatchEngine(
+            generator=tts_controller,
+            max_batch_size=MAX_BATCH_SIZE,
+            max_wait_ms=300,  # Esperar máximo 300ms recolectando items para el batch
+            vram_per_item_gb=VRAM_PER_ITEM_GB,
+        )
+        batch_engine.start()
+        print("🚀 Batch Engine iniciado y listo para recibir solicitudes.")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    if batch_engine:
+        batch_engine.stop()
+        print("🛑 Batch Engine detenido.")
 
 # --- Routes ---
 @app.get("/")
 def read_root():
-    return {"Hello": "World", "Service": "Hidra-TTS", "Model": "Qwen3-TTS"}
+    stats = {}
+    if batch_engine:
+        stats = {
+            "total_batches": batch_engine.total_batches_processed,
+            "total_items": batch_engine.total_items_processed,
+            "queue_size": batch_engine.queue.qsize(),
+            "max_batch_size": MAX_BATCH_SIZE,
+        }
+    return {
+        "service": "Hidra-TTS",
+        "version": "2.0.0 (Dynamic Batching)",
+        "status": "online",
+        "vram_detected": vram_info,
+        "batch_stats": stats,
+    }
 
 @app.post("/tts/extract_voice")
-def extract_voice(request: ExtractRequest):
-    if tts_module is None:
-        raise HTTPException(status_code=500, detail="TTS Module not initialized")
+async def extract_voice(
+    audio_file: UploadFile = File(...),
+    ref_text: str = Form(""),
+    model_name: str = Form("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+):
+    if tts_controller is None:
+        raise HTTPException(status_code=500, detail="TTS Controller not initialized")
 
     try:
-        print(f"📦 Extrayendo vector de voz (Calidad Máxima) a: {request.output_path}")
-        output_file = tts_module.extract_voice(
-            audio_ref_path=request.audio_ref_path,
-            output_path=request.output_path,
-            ref_text=request.ref_text
+        print(f"📦 Extrayendo vector de voz usando {model_name}...")
+        audio_bytes = await audio_file.read()
+
+        with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".wav") as tmp_audio:
+            tmp_audio.write(audio_bytes)
+            tmp_path = tmp_audio.name
+
+        tts_controller.model_name = model_name
+        prompt_bytes = await asyncio.to_thread(
+            tts_controller.extract_voice,
+            audio_ref_path=tmp_path,
+            ref_text=ref_text
         )
-        return {
-            "status": "success", 
-            "output_path": output_file,
-            "message": "Voice profile extracted successfully"
-        }
+
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+        return Response(
+            content=prompt_bytes,
+            media_type="application/octet-stream",
+            headers={"Content-Disposition": "attachment; filename=voice_prompt.pt"}
+        )
     except Exception as e:
         print(f"❌ Error extraction: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+
 @app.post("/tts/generate")
-def generate_audio(request: TTSRequest):
-    if tts_module is None:
-        raise HTTPException(status_code=500, detail="TTS Module not initialized")
+async def generate_audio(
+    text: str = Form(...),
+    audio_file: Optional[UploadFile] = File(None),
+    prompt_file: Optional[UploadFile] = File(None),
+    ref_text: str = Form(""),
+    language: str = Form("Spanish"),
+    max_new_tokens: int = Form(2048),
+    repetition_penalty: float = Form(1.1),
+    model_name: str = Form("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+):
+    """
+    Generate a single audio. 
+    
+    With Dynamic Batching enabled, this request is automatically grouped 
+    with other concurrent requests into a single GPU batch for maximum throughput.
+    """
+    if batch_engine is None:
+        raise HTTPException(status_code=500, detail="Batch Engine not initialized")
+
+    if not audio_file and not prompt_file:
+        raise HTTPException(status_code=400, detail="Debe proporcionar audio_file (.wav/.mp3) o prompt_file (.pt)")
 
     try:
-        start_time = time.time()
-        if torch.cuda.is_available():
-            torch.cuda.reset_peak_memory_stats()
+        tmp_path = None
+        voice_clone_prompt_bytes = None
 
-        print(f"🎙️ Generando audio para: {request.output_path}")
-        
-        # Prepare kwargs from request
+        if prompt_file:
+            voice_clone_prompt_bytes = await prompt_file.read()
+        elif audio_file:
+            audio_bytes = await audio_file.read()
+            with tempfile.NamedTemporaryFile(mode="wb", delete=False, suffix=".wav") as tmp_audio:
+                tmp_audio.write(audio_bytes)
+                tmp_path = tmp_audio.name
+
+        tts_controller.model_name = model_name
+
         gen_kwargs = {
-            "language": request.language,
-            "max_new_tokens": request.max_new_tokens,
-            "repetition_penalty": request.repetition_penalty,
-            "ref_text": request.ref_text,
+            "language": language,
+            "max_new_tokens": max_new_tokens,
+            "repetition_penalty": repetition_penalty,
+            "ref_text": ref_text,
         }
 
-        output_file = tts_module.generate(
-            text=request.text,
-            audio_ref_path=request.audio_ref_path,
-            output_path=request.output_path,
+        # Submit to the Batch Engine queue. The engine will automatically
+        # group this with other concurrent requests into a single GPU batch.
+        wav_bytes = await batch_engine.submit(
+            text=text,
+            audio_ref_path=tmp_path,
+            voice_clone_prompt_bytes=voice_clone_prompt_bytes,
             **gen_kwargs
         )
-        
-        end_time = time.time()
-        duration = round(end_time - start_time, 2)
-        
-        vram_mb = 0
-        if torch.cuda.is_available():
-            vram_mb = round(torch.cuda.max_memory_allocated() / (1024 * 1024), 2)
 
-        return {
-            "status": "success", 
-            "output_path": output_file,
-            "message": "Audio generated successfully",
-            "time_seconds": duration,
-            "vram_used_mb": vram_mb
-        }
+        if tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
+
+        return Response(
+            content=wav_bytes,
+            media_type="audio/wav",
+            headers={"Content-Disposition": "attachment; filename=generated_audio.wav"}
+        )
 
     except Exception as e:
         print(f"❌ Error generation: {e}")
+        if 'tmp_path' in locals() and tmp_path and os.path.exists(tmp_path):
+            os.remove(tmp_path)
         raise HTTPException(status_code=500, detail=str(e))
 
 
