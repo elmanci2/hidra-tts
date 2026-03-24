@@ -53,6 +53,8 @@ batch_engine: Optional[BatchEngine] = None
 async def startup_event():
     global batch_engine
     if tts_controller is not None:
+        print("🚀 Precargando el modelo TTS...")
+        await asyncio.to_thread(model_manager.get_model)
         batch_engine = BatchEngine(
             generator=tts_controller,
             max_batch_size=MAX_BATCH_SIZE,
