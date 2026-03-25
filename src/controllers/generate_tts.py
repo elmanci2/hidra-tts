@@ -7,13 +7,32 @@ import gc
 import threading
 from typing import List, Optional
 
-try:
-    import flash_attn  # noqa: F401
-    ATTN_IMPL = "flash_attention_2"
-    print("usando flash_attention_2")
-except ImportError:
-    ATTN_IMPL = "sdpa"
-    print("usando sdpa")
+import os
+
+def detect_attn_impl():
+    # Force SDPA via environment variable
+    if os.environ.get("FORCE_SDPA", "0") == "1":
+        return "sdpa"
+
+    try:
+        if torch.cuda.is_available():
+            cap = torch.cuda.get_device_capability()
+            # RTX 5090 is sm_120. Precompiled wheels often don't support Blackwell yet.
+            if cap[0] >= 10: # Blackwell is 10+
+                print(f"⚠️ GPU detectada (sm_{cap[0]}{cap[1]}) es Blackwell. Usando 'sdpa' para evitar errores de kernel.")
+                return "sdpa"
+
+        import flash_attn  # noqa: F401
+        print("usando flash_attention_2")
+        return "flash_attention_2"
+    except ImportError:
+        print("usando sdpa")
+        return "sdpa"
+    except Exception as e:
+        print(f"⚠️ Error al importar flash_attn, usando sdpa: {e}")
+        return "sdpa"
+
+ATTN_IMPL = detect_attn_impl()
 
 
 class ModelManager:
