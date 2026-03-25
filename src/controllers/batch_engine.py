@@ -104,12 +104,18 @@ class BatchEngine:
                 # Calculate how many more we can fit
                 dynamic_max = self._calculate_dynamic_batch_size()
 
-                # Wait indefinitely until the batch is completely full
-                print(f"⏳ Esperando a llenar el batch ({len(batch)}/{dynamic_max})...")
+                # Wait until the batch is full OR the timeout expires
                 while len(batch) < dynamic_max:
-                    job = await self.queue.get()
-                    batch.append(job)
-                    print(f"📥 Item añadido al batch ({len(batch)}/{dynamic_max})...")
+                    try:
+                        # Use wait_for to implement the temporal window
+                        job = await asyncio.wait_for(self.queue.get(), timeout=self.max_wait_ms)
+                        batch.append(job)
+                        print(f"📥 Item añadido al batch ({len(batch)}/{dynamic_max})...")
+                    except asyncio.TimeoutError:
+                        # If no more items arrive within the window, stop waiting and process what we have
+                        if len(batch) > 0:
+                            print(f"⏱️ Tiempo de espera agotado ({self.max_wait_ms*1000}ms). Procesando batch incompleto de {len(batch)}.")
+                        break
 
                 # Process the batch
                 await self._process_batch(batch)

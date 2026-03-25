@@ -59,7 +59,7 @@ async def startup_event():
         batch_engine = BatchEngine(
             generator=tts_controller,
             max_batch_size=MAX_BATCH_SIZE,
-            max_wait_ms=300,  # Esperar máximo 300ms recolectando items para el batch
+            max_wait_ms=10000,  # Esperar máximo 10 segundos recolectando items para el batch
             vram_per_item_gb=VRAM_PER_ITEM_GB,
         )
         batch_engine.start()
