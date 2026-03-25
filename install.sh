@@ -25,18 +25,28 @@ echo -e "${BOLD}╚════════════════════�
 
 cd "$SCRIPT_DIR"
 
+# ── Detective de Sudo ─────────────────────────────────────────
+SUDO=""
+if [ "$(id -u)" -ne 0 ]; then
+    if command -v sudo >/dev/null 2>&1; then
+        SUDO="sudo"
+    else
+        warn "No eres root y 'sudo' no está instalado. El script podría fallar en pasos del sistema."
+    fi
+fi
+
 # ── 1. Dependencias del sistema ───────────────────────────────
-info "Instalando dependencias del sistema (requiere sudo)..."
-sudo apt-get update -qq
-sudo apt-get install -y -qq \
+info "Instalando dependencias del sistema..."
+$SUDO apt-get update -qq
+$SUDO apt-get install -y -qq \
     software-properties-common curl git ffmpeg libsndfile1 sox
 
 # Python 3.11 via deadsnakes
 if ! python3.11 --version &>/dev/null 2>&1; then
     info "Agregando PPA deadsnakes e instalando Python ${PYTHON_VERSION}..."
-    sudo add-apt-repository -y ppa:deadsnakes/ppa
-    sudo apt-get update -qq
-    sudo apt-get install -y -qq \
+    $SUDO add-apt-repository -y ppa:deadsnakes/ppa
+    $SUDO apt-get update -qq
+    $SUDO apt-get install -y -qq \
         python3.11 python3.11-venv python3.11-dev python3.11-distutils
 else
     success "Python ${PYTHON_VERSION} ya instalado: $(python3.11 --version)"
