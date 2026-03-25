@@ -78,14 +78,12 @@ class BatchEngine:
         return await job.future
 
     def _calculate_dynamic_batch_size(self) -> int:
-        """Calculate max batch size based on current free VRAM."""
-        from src.controllers.generate_tts import model_manager
-        free_vram = model_manager.get_vram_after_model()
-        # Reserve 1GB safety margin
-        usable = max(0, free_vram - 1.0)
-        # Reducción literal del 5% solicitada sobre la capacidad total calculada
-        dynamic_max = max(1, int((usable / self.vram_per_item_gb) * 0.95))
-        return min(dynamic_max, self.max_batch_size)
+        """Calculate max batch size based on the initialized max_batch_size."""
+        # Aplicamos la reducción del 5% directamente sobre el tamaño máximo
+        # estático que se pasó al inicializar el engine, para evitar que
+        # el re-caché de PyTorch reduzca el tamaño del batch a 1.
+        dynamic_max = max(1, int(self.max_batch_size * 0.95))
+        return dynamic_max
 
     async def _batch_loop(self):
         """

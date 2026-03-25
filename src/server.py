@@ -80,7 +80,7 @@ def read_root():
             "total_batches": batch_engine.total_batches_processed,
             "total_items": batch_engine.total_items_processed,
             "queue_size": batch_engine.queue.qsize(),
-            "max_batch_size": MAX_BATCH_SIZE,
+            "max_batch_size": batch_engine._calculate_dynamic_batch_size(),
         }
     return {
         "service": "Hidra-TTS",
