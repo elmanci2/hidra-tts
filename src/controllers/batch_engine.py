@@ -83,7 +83,8 @@ class BatchEngine:
         free_vram = model_manager.get_vram_after_model()
         # Reserve 1GB safety margin
         usable = max(0, free_vram - 1.0)
-        dynamic_max = max(1, int(usable / self.vram_per_item_gb))
+        # Reducción literal del 5% solicitada sobre la capacidad total calculada
+        dynamic_max = max(1, int((usable / self.vram_per_item_gb) * 0.95))
         return min(dynamic_max, self.max_batch_size)
 
     async def _batch_loop(self):

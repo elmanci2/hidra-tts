@@ -8,6 +8,18 @@ import threading
 from typing import List, Optional
 
 import os
+from typing import List, Optional
+from transformers import LogitsProcessor, LogitsProcessorList
+
+class ProgressTracker(LogitsProcessor):
+    def __init__(self, batch_size):
+        self.step = 0
+        self.batch_size = batch_size
+    def __call__(self, input_ids, scores):
+        self.step += 1
+        if self.step % 50 == 0:
+            print(f"⏳ [Batch de {self.batch_size}] Avanzando... token {self.step} generado.", flush=True)
+        return scores
 
 def detect_attn_impl():
     # Force SDPA via environment variable
@@ -138,6 +150,9 @@ class Generate:
         }
         params.update(kwargs)
         params["x_vector_only_mode"] = self._resolve_x_vector_mode(params.get("ref_text"))
+
+        tracker = ProgressTracker(len(texts))
+        params["logits_processor"] = LogitsProcessorList([tracker])
 
         if voice_clone_prompt_bytes is not None:
             prompt = torch.load(io.BytesIO(voice_clone_prompt_bytes), weights_only=False)
