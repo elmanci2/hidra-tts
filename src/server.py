@@ -3,6 +3,7 @@ import time
 import torch
 import io
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import tempfile
 from typing import Optional
 import asyncio
@@ -40,7 +41,7 @@ except Exception:
 
 # El modelo base toma ~3.8 GB en bf16.
 AVAILABLE_FOR_TASKS = MAX_VRAM_GB - 3.8
-VRAM_PER_ITEM_GB = 0.5  # Cada item en un batch usa ~0.5GB (mucho menos que procesos separados)
+VRAM_PER_ITEM_GB = 0.8  # Cada item en un batch usa ~0.8GB para evitar OOM con textos largos
 MAX_BATCH_SIZE = max(1, min(128, int(AVAILABLE_FOR_TASKS / VRAM_PER_ITEM_GB))) if AVAILABLE_FOR_TASKS > 0 else 1
 
 vram_info = f"{round(MAX_VRAM_GB, 2)}GB"

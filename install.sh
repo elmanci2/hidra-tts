@@ -62,11 +62,25 @@ success "Entorno virtual activado."
 info "Actualizando pip..."
 pip install --quiet --upgrade pip setuptools wheel hf_transfer
 
-# ── 4. PyTorch con soporte CUDA 12.4 ─────────────────────────
-info "Instalando PyTorch 2.6.0 + torchaudio + torchvision (CUDA 12.4)..."
-pip install --quiet \
-    torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0 \
-    --index-url https://download.pytorch.org/whl/cu124
+# ── 4. PyTorch con soporte CUDA ───────────────────────────────
+# Detección de Blackwell (sm_120 -> RTX 5090)
+TORCH_URL="https://download.pytorch.org/whl/cu124"
+TORCH_VERSION="torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0"
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+    # Intenta obtener el major compute capability (p.ej. 12 para sm_120)
+    # nvmlDeviceGetMaxPcieLinkGeneration no es confiable, mejor nvidia-smi controlando arch
+    # Si detectamos una arquitectura Blackwell (120 o superior), usamos Nightly
+    # (En RunPod nvidia-smi suele estar disponible)
+    if python3 -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null | grep -q "^1[0-9]"; then
+        info "Detectada GPU Blackwell (sm_120+). Instalando PyTorch 2.7+ Nightly (cu128) para compatibilidad..."
+        TORCH_URL="https://download.pytorch.org/whl/nightly/cu128"
+        TORCH_VERSION="--pre torch torchvision torchaudio"
+    fi
+fi
+
+info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
+pip install --quiet ${TORCH_VERSION} --index-url ${TORCH_URL}
 success "PyTorch instalado."
 
 # ── 5. Flash-Attention (rueda precompilada) ───────────────────
