@@ -33,6 +33,7 @@ dependencies = [
   "fastapi",
   "python-multipart",
   "numpy",
+  "hf_transfer",
 ]
 
 

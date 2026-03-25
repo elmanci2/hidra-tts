@@ -50,7 +50,7 @@ success "Entorno virtual activado."
 
 # ── 3. Actualizar pip ─────────────────────────────────────────
 info "Actualizando pip..."
-pip install --quiet --upgrade pip setuptools wheel
+pip install --quiet --upgrade pip setuptools wheel hf_transfer
 
 # ── 4. PyTorch con soporte CUDA 12.4 ─────────────────────────
 info "Instalando PyTorch 2.6.0 + torchaudio + torchvision (CUDA 12.4)..."
