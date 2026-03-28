@@ -29,22 +29,20 @@ def detect_attn_impl():
     try:
         if torch.cuda.is_available():
             cap = torch.cuda.get_device_capability()
-            # RTX 5090 is sm_120. Precompiled wheels often don't support Blackwell yet.
-            if cap[0] >= 10: # Blackwell is 10+
-                print(f"⚠️ GPU detectada (sm_{cap[0]}{cap[1]}) es Blackwell. Usando 'sdpa' para evitar errores de kernel.")
+            # Blackwell (RTX 50-series) uses sm_100/120. Precompiled FA2 wheels 
+            # often lack these kernels, so we fallback to SDPA for stability.
+            if cap[0] >= 10:
+                print(f"⚠️ Blackwell GPU (sm_{cap[0]}{cap[1]}) detectada. Usando 'sdpa' para evitar errores de kernel.")
                 return "sdpa"
 
         import flash_attn  # noqa: F401
         print("usando flash_attention_2")
         return "flash_attention_2"
-    except ImportError:
+    except (ImportError, Exception):
         print("usando sdpa")
         return "sdpa"
-    except Exception as e:
-        print(f"⚠️ Error al importar flash_attn, usando sdpa: {e}")
-        return "sdpa"
 
-ATTN_IMPL = detect_attn_impl()
+# Removal of module-level ATTN_IMPL
 
 
 class ModelManager:
@@ -61,12 +59,13 @@ class ModelManager:
                     del self.model
                     gc.collect()
                     torch.cuda.empty_cache()
-                print(f"📦 Loading model: {model_name}")
+                attn_impl = detect_attn_impl()
+                print(f"📦 Loading model: {model_name} with {attn_impl}")
                 self.model = Qwen3TTSModel.from_pretrained(
                     model_name,
                     device_map="cuda",
                     dtype=torch.bfloat16,
-                    attn_implementation=ATTN_IMPL,
+                    attn_implementation=attn_impl,
                 )
                 self.current_model_name = model_name
                 print(f"✅ Model {model_name} loaded successfully.")
