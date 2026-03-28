@@ -83,18 +83,12 @@ info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
 pip install --quiet ${TORCH_VERSION} --index-url ${TORCH_URL}
 success "PyTorch instalado."
 
-# ── 5. Flash-Attention (rueda precompilada) ───────────────────
-info "Instalando flash-attention (rueda precompilada para PyTorch 2.6 + CUDA 12 + Python 3.11)..."
-pip install --quiet \
-    https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.6cxx11abiFALSE-cp311-cp311-linux_x86_64.whl
-success "flash-attention instalado."
-
-# ── 6. Instalar el proyecto y sus dependencias ────────────────
+# ── 5. Instalar el proyecto y sus dependencias ────────────────
 info "Instalando hidra-tts y sus dependencias desde pyproject.toml..."
 pip install --quiet -e .
 success "hidra-tts instalado."
 
-# ── 7. Script de arranque del servidor ───────────────────────
+# ── 6. Script de arranque del servidor ───────────────────────
 info "Generando script de arranque: run_server.sh..."
 cat > "$SCRIPT_DIR/run_server.sh" << 'EOF'
 #!/usr/bin/env bash

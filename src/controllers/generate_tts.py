@@ -21,29 +21,11 @@ class ProgressTracker(LogitsProcessor):
             print(f"⏳ [Batch de {self.batch_size}] Avanzando... token {self.step} generado.", flush=True)
         return scores
 
-def detect_attn_impl():
-    # Force SDPA via environment variable
-    if os.environ.get("FORCE_SDPA", "0") == "1":
-        return "sdpa"
-
-    try:
-        if torch.cuda.is_available():
-            cap = torch.cuda.get_device_capability()
-            # Blackwell (RTX 50-series) uses sm_100/120. Precompiled FA2 wheels 
-            # often lack these kernels, so we fallback to SDPA for stability.
-            if cap[0] >= 10:
-                print(f"⚠️ Blackwell GPU (sm_{cap[0]}{cap[1]}) detectada. Usando 'sdpa' para evitar errores de kernel.")
-                return "sdpa"
-
-        import flash_attn  # noqa: F401
-        print("usando flash_attention_2")
-        return "flash_attention_2"
-    except (ImportError, Exception):
-        print("usando sdpa")
-        return "sdpa"
-
-# Removal of module-level ATTN_IMPL
-
+def get_attn_implementation():
+    # Force SDPA via environment variable or default to it for CUDA
+    if os.environ.get("FORCE_EAGER", "0") == "1":
+        return "eager"
+    return "sdpa"
 
 class ModelManager:
     """Thread-safe singleton model manager with lazy loading."""
@@ -59,7 +41,7 @@ class ModelManager:
                     del self.model
                     gc.collect()
                     torch.cuda.empty_cache()
-                attn_impl = detect_attn_impl()
+                attn_impl = get_attn_implementation()
                 print(f"📦 Loading model: {model_name} with {attn_impl}")
                 self.model = Qwen3TTSModel.from_pretrained(
                     model_name,
