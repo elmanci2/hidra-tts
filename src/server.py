@@ -1,9 +1,18 @@
+import os
+# ── Blackwell (sm_120) compatibility ─────────────────────────────────────────
+# The @use_kernel_forward_from_hub("RMSNorm") decorator in the Qwen3TTS model
+# tries to load a pre-compiled CUDA binary from HuggingFace Hub. That binary
+# has no kernel image for Blackwell (sm_120 / RTX 5080+), causing:
+#   "CUDA error: no kernel image is available for execution on the device"
+# Setting this env var BEFORE any transformers import disables Hub kernels
+# entirely and falls back to native PyTorch — safe and correct on all GPUs.
+os.environ["TRANSFORMERS_USE_KERNELS"] = "0"
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# ─────────────────────────────────────────────────────────────────────────────
 import uvicorn
 import time
 import torch
 import io
-import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import tempfile
 from typing import Optional
 import asyncio

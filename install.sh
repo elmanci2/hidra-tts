@@ -95,6 +95,12 @@ cat > "$SCRIPT_DIR/run_server.sh" << 'EOF'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/.venv/bin/activate"
 cd "$SCRIPT_DIR"
+
+# ── Blackwell (sm_120) compatibility ──────────────────────────────────────────
+# Disable HuggingFace Hub pre-compiled CUDA kernels (e.g. RMSNorm) which have
+# no kernel image for sm_120 (RTX 5080/5090). Falls back to native PyTorch.
+export TRANSFORMERS_USE_KERNELS=0
+
 echo "🚀 Iniciando Hidra-TTS server..."
 python main.py
 EOF
