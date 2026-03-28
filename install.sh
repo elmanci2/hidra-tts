@@ -86,7 +86,7 @@ else
 fi
 
 info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
-pip install --quiet ${TORCH_VERSION} --index-url ${TORCH_URL}
+pip install --progress-bar on ${TORCH_VERSION} --index-url ${TORCH_URL}
 success "PyTorch instalado."
 
 # ── 5. Instalar el proyecto y sus dependencias ────────────────
