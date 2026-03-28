@@ -63,20 +63,26 @@ info "Actualizando pip..."
 pip install --quiet --upgrade pip setuptools wheel hf_transfer
 
 # ── 4. PyTorch con soporte CUDA ───────────────────────────────
-# Detección de Blackwell (sm_120 -> RTX 5090)
+# Detección de GPU: Blackwell (sm_120 = RTX 5080/5090) requiere PyTorch 2.8+
+# Usamos nvidia-smi para detectar la compute capability ANTES de instalar torch.
 TORCH_URL="https://download.pytorch.org/whl/cu124"
 TORCH_VERSION="torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0"
 
 if command -v nvidia-smi >/dev/null 2>&1; then
-    # Intenta obtener el major compute capability (p.ej. 12 para sm_120)
-    # nvmlDeviceGetMaxPcieLinkGeneration no es confiable, mejor nvidia-smi controlando arch
-    # Si detectamos una arquitectura Blackwell (120 o superior), usamos Nightly
-    # (En RunPod nvidia-smi suele estar disponible)
-    if python3 -c "import torch; print(torch.cuda.get_device_capability()[0])" 2>/dev/null | grep -q "^1[0-9]"; then
-        info "Detectada GPU Blackwell (sm_120+). Instalando PyTorch 2.7+ Nightly (cu128) para compatibilidad..."
+    # Obtiene compute capability del primer GPU (ej: "12.0" para RTX 5090)
+    GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d '[:space:]')
+    GPU_MAJOR=$(echo "$GPU_CC" | cut -d'.' -f1)
+
+    if [ -n "$GPU_MAJOR" ] && [ "$GPU_MAJOR" -ge 12 ] 2>/dev/null; then
+        warn "Detectada GPU Blackwell (sm_${GPU_CC//./} / compute cap ${GPU_CC})."
+        info "RTX 5080/5090 requiere PyTorch 2.8+ Nightly (cu128). Instalando..."
         TORCH_URL="https://download.pytorch.org/whl/nightly/cu128"
         TORCH_VERSION="--pre torch torchvision torchaudio"
+    else
+        info "GPU compute capability: ${GPU_CC:-desconocida}. Usando PyTorch estable cu124."
     fi
+else
+    warn "nvidia-smi no encontrado. Usando PyTorch estable cu124 por defecto."
 fi
 
 info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
