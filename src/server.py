@@ -7,7 +7,8 @@ import os
 # Setting this env var BEFORE any transformers import disables Hub kernels
 # entirely and falls back to native PyTorch — safe and correct on all GPUs.
 os.environ["TRANSFORMERS_USE_KERNELS"] = "0"
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# (El parámetro PYTORCH_CUDA_ALLOC_CONF="expandable_segments:True" se ha
+# eliminado porque provoca colapso de init de CUDA dentro de RunPod Docker).
 # ─────────────────────────────────────────────────────────────────────────────
 import uvicorn
 import time
