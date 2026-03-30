@@ -63,10 +63,29 @@ info "Actualizando pip..."
 pip install --quiet --upgrade pip setuptools wheel hf_transfer
 
 # ── 4. PyTorch con soporte CUDA ───────────────────────────────
-# Instalamos PyTorch 2.6.0 con CUDA 12.4. Esta versión estable soporta Blackwell 
-# (RTX 5080/5090) correctamente usando SDPA y es compatible con los drivers de RunPod.
+# Detección de GPU: Blackwell (sm_120 = RTX 5080/5090) requiere PyTorch 2.8+
+# Usamos nvidia-smi para detectar la compute capability ANTES de instalar torch.
 TORCH_URL="https://download.pytorch.org/whl/cu124"
 TORCH_VERSION="torch==2.6.0 torchvision==0.21.0 torchaudio==2.6.0"
+
+if command -v nvidia-smi >/dev/null 2>&1; then
+    # Obtiene compute capability del primer GPU (ej: "12.0" para RTX 5090)
+    GPU_CC=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader 2>/dev/null | head -1 | tr -d '[:space:]')
+    GPU_MAJOR=$(echo "$GPU_CC" | cut -d'.' -f1)
+
+    if [ -n "$GPU_MAJOR" ] && [ "$GPU_MAJOR" -ge 12 ] 2>/dev/null; then
+        warn "Detectada GPU Blackwell (sm_${GPU_CC//./} / compute cap ${GPU_CC})."
+        info "RTX 5080/5090 requiere PyTorch 2.8+ Nightly (cu128). Instalando..."
+        TORCH_URL="https://download.pytorch.org/whl/nightly/cu128"
+        TORCH_VERSION="--pre torch torchvision torchaudio"
+    else
+        info "GPU compute capability: ${GPU_CC:-desconocida}. Usando PyTorch estable cu124."
+    fi
+else
+    warn "nvidia-smi no encontrado. Usando PyTorch estable cu124 por defecto."
+fi
+
+info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
 
 info "Instalando PyTorch (${TORCH_VERSION}) desde ${TORCH_URL}..."
 pip install --progress-bar on ${TORCH_VERSION} --index-url ${TORCH_URL}
