@@ -132,6 +132,26 @@ class Generate:
         params.update(kwargs)
         params["x_vector_only_mode"] = self._resolve_x_vector_mode(params.get("ref_text"))
 
+        print("\n" + "="*50)
+        print("====== LOGS NÚCLEO (GENERATE_TTS.PY) ======")
+        print(f"Diccionario **params antes de generate_voice_clone:")
+        for k, v in params.items():
+            print(f"  {k}: {v}")
+            
+        if voice_clone_prompt_bytes is not None:
+            print("→ SE DETECTÓ ARCHIVO .PT (Voice Clone Prompt)")
+            prompt = torch.load(io.BytesIO(voice_clone_prompt_bytes), weights_only=False)
+            if isinstance(prompt, list):
+                for idx, p in enumerate(prompt):
+                    print(f"    Item[{idx}]: icl_mode={getattr(p, 'icl_mode', '?')}, x_vector_only_mode={getattr(p, 'x_vector_only_mode', '?')}, ref_text='{getattr(p, 'ref_text', '?')}', ref_code={'SÍ' if getattr(p, 'ref_code', None) is not None else 'NO'}")
+            else:
+                print("    Formato de prompt desconocido (no es lista).")
+        elif audio_ref_path is not None:
+            print(f"→ SE DETECTÓ ARCHIVO DE AUDIO DIRECTO: {audio_ref_path}")
+        else:
+            print("→ ATENCIÓN: NO HAY PROMPT NI AUDIO DE REFERENCIA")
+        print("="*50 + "\n")
+
         tracker = ProgressTracker(len(texts))
         params["logits_processor"] = LogitsProcessorList([tracker])
 

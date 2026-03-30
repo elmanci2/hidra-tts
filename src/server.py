@@ -193,6 +193,17 @@ async def generate_audio(
             "ref_text": ref_text,
         }
 
+        print("\n" + "="*50)
+        print("====== LOGS DE ENDPOINT (SERVER.PY) ======")
+        print(f"Texto principal: '{text}'")
+        print(f"Texto de referencia (ref_text): '{ref_text}'")
+        print(f"¿Tiene .pt enviado?: {bool(voice_clone_prompt_bytes)}")
+        print(f"¿Tiene audio directo?: {bool(tmp_path)}")
+        print(f"Gen Kwargs:")
+        for k,v in gen_kwargs.items():
+            print(f"  {k}: {v}")
+        print("="*50 + "\n")
+
         # Submit to the Batch Engine queue. The engine will automatically
         # group this with other concurrent requests into a single GPU batch.
         wav_bytes = await batch_engine.submit(
