@@ -176,33 +176,14 @@ async def generate_audio(
 
         tts_controller.model_name = model_name
 
-        # Ignorar los parámetros enviados por el cliente y forzar calidad extrema
-        forced_max_new_tokens = 2048
-        forced_repetition_penalty = 1.0
-        forced_temperature = 0.5
-        forced_top_p = 0.85
-
         gen_kwargs = {
             "language": language,
-            "max_new_tokens": forced_max_new_tokens,
-            "repetition_penalty": forced_repetition_penalty,
-            "temperature": forced_temperature,
-            "top_p": forced_top_p,
-            "do_sample": False,
-            "subtalker_dosample": False,
+            "max_new_tokens": max_new_tokens,
+            "repetition_penalty": repetition_penalty,
+            "temperature": temperature,
+            "top_p": top_p,
             "ref_text": ref_text,
         }
-
-        print("\n" + "="*50)
-        print("====== LOGS DE ENDPOINT (SERVER.PY) ======")
-        print(f"Texto principal: '{text}'")
-        print(f"Texto de referencia (ref_text): '{ref_text}'")
-        print(f"¿Tiene .pt enviado?: {bool(voice_clone_prompt_bytes)}")
-        print(f"¿Tiene audio directo?: {bool(tmp_path)}")
-        print(f"Gen Kwargs:")
-        for k,v in gen_kwargs.items():
-            print(f"  {k}: {v}")
-        print("="*50 + "\n")
 
         # Submit to the Batch Engine queue. The engine will automatically
         # group this with other concurrent requests into a single GPU batch.
