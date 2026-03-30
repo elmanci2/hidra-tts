@@ -178,7 +178,7 @@ async def generate_audio(
 
         # Ignorar los parámetros enviados por el cliente y forzar calidad extrema
         forced_max_new_tokens = 2048
-        forced_repetition_penalty = 1.05
+        forced_repetition_penalty = 1.0
         forced_temperature = 0.5
         forced_top_p = 0.85
 
