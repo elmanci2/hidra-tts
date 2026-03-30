@@ -145,7 +145,9 @@ async def generate_audio(
     ref_text: str = Form(""),
     language: str = Form("Spanish"),
     max_new_tokens: int = Form(2048),
-    repetition_penalty: float = Form(1.1),
+    repetition_penalty: float = Form(1.0),
+    temperature: float = Form(0.5),
+    top_p: float = Form(0.85),
     model_name: str = Form("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
 ):
     """
@@ -174,10 +176,18 @@ async def generate_audio(
 
         tts_controller.model_name = model_name
 
+        # Ignorar los parámetros enviados por el cliente y forzar calidad extrema
+        forced_max_new_tokens = 2048
+        forced_repetition_penalty = 1.0
+        forced_temperature = 0.5
+        forced_top_p = 0.85
+
         gen_kwargs = {
             "language": language,
-            "max_new_tokens": max_new_tokens,
-            "repetition_penalty": repetition_penalty,
+            "max_new_tokens": forced_max_new_tokens,
+            "repetition_penalty": forced_repetition_penalty,
+            "temperature": forced_temperature,
+            "top_p": forced_top_p,
             "ref_text": ref_text,
         }
 

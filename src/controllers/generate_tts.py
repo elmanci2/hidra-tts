@@ -82,10 +82,10 @@ class Generate:
         params = {
             "language": "Spanish",
             "x_vector_only_mode": False,
-            "max_new_tokens": 512,
-            "repetition_penalty": 1.07,
-            "temperature": 0.9,
-            "top_p": 1.0,
+            "max_new_tokens": 2048,
+            "repetition_penalty": 1.0,
+            "temperature": 0.5,
+            "top_p": 0.85,
         }
         params.update(kwargs)
         params["x_vector_only_mode"] = self._resolve_x_vector_mode(params.get("ref_text"))
@@ -124,10 +124,10 @@ class Generate:
         params = {
             "language": "Spanish",
             "x_vector_only_mode": False,
-            "max_new_tokens": 512,
-            "repetition_penalty": 1.07,
-            "temperature": 0.9,
-            "top_p": 1.0,
+            "max_new_tokens": 2048,
+            "repetition_penalty": 1.0,
+            "temperature": 0.5,
+            "top_p": 0.85,
         }
         params.update(kwargs)
         params["x_vector_only_mode"] = self._resolve_x_vector_mode(params.get("ref_text"))
