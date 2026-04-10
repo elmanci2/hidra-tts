@@ -286,6 +286,8 @@ El script dispara 10 peticiones simultáneas. El Batch Engine las agrupará auto
 
 ---
 
+## git clone https://github.com/elmanci2/hidra-tts && cd hidra-tts && chmod +x install.sh && ./install.sh
+
 ## Licencia
 
 Apache-2.0
